@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Grid } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Grid, Skeleton } from '@mui/material';
 
 import GraphTypeSelect from "./GraphTypeSelect";
 import GraphCourseworkSelect from "./GraphCourseworkSelect";
@@ -7,14 +7,82 @@ import GraphGroupSelect from "./GraphGroupSelect";
 
 import Graphs from "./GraphDisplay";
 
-// Test fetch function with the server running.
-async function simpleGet() {
-    let variable = await fetch("http://localhost:5000/assignments?aggregation=[ { $match: { class_id: { $eq: ObjectId('637441a3dbbc40b8267f8ce7') } } } ]");
-    console.log('Here is the FETCH request', await variable.json());
-}
-
 export default function CourseworkGraph() {
-    simpleGet(); // call the get function declared above.
+    const [loading, setLoading] = useState(false);
+    // const targetClass = '637441a3dbbc40b8267f8ce7';
+    const [assignmentGetData, setAssignments] = useState([]); // initate hook for assignment data
+    useEffect(() => {   // Fetch API data after component mounts to DOM
+      fetchAssignments(); // Call fetch assignments function
+      fetchStudents();
+      
+    }, []); // Empty array indicates this only runs once
+    
+    const fetchAssignments = () => {
+        setLoading(true);
+        fetch("http://localhost:5000/assignments?aggregation=[ { $match: { class_id: { $eq: ObjectId('637441a3dbbc40b8267f8ce7') } } } ]")
+            .then( ( response ) => response.json() )
+            .then( ( data ) => {
+                console.log('Fetch assignments returned', data);
+                setAssignments(data);
+                setLoading(false);
+                handleAssignments(data.map((item) => {
+                        return item._id
+                    })    
+                );
+            })
+    };
+
+    const [studentData, setStudentData] = useState([]); // initiate hook for student name data
+
+    const fetchStudents = () => {
+        fetch("http://localhost:5000/paper?aggregation=[ { $match: { course: { $eq: ObjectId('637441a3dbbc40b8267f8ce7') } } } ]")
+        .then( (response) => response.json())
+        .then( (data) => {
+            setStudentData(data);
+        })
+        .finally(() => {
+            studentNaming();
+            fetchCitations();
+            console.log('Citations...', citationData);
+        })
+    };
+    
+    var studentNames = [];
+    const studentNaming = () => {
+        let dupeArray = studentData.map((element) => {
+            return element.name;
+        });
+        studentNames = [...new Set(dupeArray)]; // Sets studentNames to be a list of unique strings
+    };
+
+    const [citationData, setCitationData] = useState([]);
+
+    const fetchCitations = () => {
+        if (studentNames.length > 0) {
+            let firstFetchString = "http://localhost:5000/citations?aggregation=[ { $lookup: { from: 'paper' , localField: 'paper_id' , foreignField: '_id' , as: 'paperInfo' } } ,  { $match: { paperInfo: { $elemMatch: { name: \"";
+            let secondFetchString = "\" } } } } ]";
+            Promise.all(studentNames.map( async (element) => {
+                return fetch(firstFetchString+element+secondFetchString).then( (response) => response.json()).then( (data) => { return Promise.resolve(data) });
+            })).then( (data) => { setCitationData(data.reduce((result, input) => {
+                input.forEach(elem => result.push(elem)); 
+                return result;
+            },[]))});
+        };
+    };
+
+    // const fetchCitations = () => {
+    //     if (studentNames.length > 0) {
+    //         let firstFetchString = "http://localhost:5000/citations?aggregation=[ { $lookup: { from: 'paper' , localField: 'paper_id' , foreignField: '_id' , as: 'paperInfo' } } ,  { $match: { paperInfo: { $elemMatch: { name: \"";
+    //         let secondFetchString = "\" } } } } ]";
+    //         Promise.all(studentNames.map( async (element) => {
+    //             return fetch(firstFetchString+element+secondFetchString).then( (response) => response.json()).then( (data) => { return Promise.resolve(data) });
+    //         })).then( (data) => { 
+    //             console.log('Citations fetched', data);
+    //             setCitationData(data);
+    //         });
+    //     };
+    // };
+
     // Declaring Graph Type for GraphTypeSelect child
     const [graphType, setGraphType] = useState([0]); // useState exports the graphtype to an object for props to pass to child
     // Retrieving and updating Graph Type from Child->GraphTypeSelect
@@ -33,76 +101,29 @@ export default function CourseworkGraph() {
         // Call filter function -> Updates filteredAssignments to pass to graph
         console.log('Received... ', assignmentId)
         
-        // console.log('Filtering down master list: ', assignmentGetData);
-        // filteredAssignments = assignmentGetData.filter(assign => assignmentId.includes(assign._id));
-        // console.log('returned filtered list: ', filteredAssignments);
         updateFilter(filteredAssignments = assignmentGetData.filter(assign => assignmentId.includes(assign._id)));
     };
-    
-
-
-    // Fetch assignment data placeholder TODO: replace with a get request
-    var assignmentGetData = [
-        {"_id":"63685cb6bb2c349237c6fc06","name":"assignment 2","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc07","name":"assignment 3","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc08","name":"assignment 4","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc09","name":"assignment 5","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc0a","name":"assignment 6","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc04","name":"assignment 0","group_ids":[],"members":[],"__v":0},
-        {"_id":"63685cb6bb2c349237c6fc05","name":"assignment 1","group_ids":[],"members":[],"__v":0},
-        ];
     
     var [filteredAssignments, updateFilter] = useState(() => {
         return assignmentGetData // Declares initial state of filteredAssignments = assignmentGetData
     });
-    // function updateFilter(listSelectedAssignmentIds) {
-    //     console.log('Filtering down master list: ', assignmentGetData);
-    //     filteredAssignments = assignmentGetData.filter(assign => listSelectedAssignmentIds.includes(assign._id));
-    //     console.log('returned filtered list: ', filteredAssignments);
-    // };
-    // Filter assignment GET data by the selected assignments returned Ids
-    const filterAssignments = (listSelectedAssignmentIds) => {
-        filteredAssignments = assignmentGetData.filter(({_id}) => listSelectedAssignmentIds.includes(_id));
-        console.log('The newly filtered assignments are: ', filteredAssignments);
-    };
-
-    // Declare string lists of names and Ids for dropdown
-    var assignmentNames = [];
-    var assignmentIds = [];
-    // Map json names key to string array
-    assignmentNames = assignmentGetData.map((assignmentData) => {
-        return assignmentData.name;
-    });
-    // Map json ids key to string array
-    assignmentIds = assignmentGetData.map((assignmentData) => {
-        return assignmentData._id;
-    });
-
-    // Fetch students data placeholder TODO: replace with get request
-    var studentGetData = [
-        {"_id":"636c746c51e97573ebaa8d06", "name":"user_0", "email":"user_0@humboldt.edu", "__v": 0},
-        {"_id":"636c746d51e97573ebaa8d09", "name":"user_1", "email":"user_1@humboldt.edu", "__v": 0},
-        {"_id":"636c746d51e97573ebaa8d0b", "name":"user_2", "email":"user_2@humboldt.edu", "__v": 0},
-        {"_id":"636c746d51e97573ebaa8d0d", "name":"user_3", "email":"user_3@humboldt.edu", "__v": 0},
-        {"_id":"636c75f700d5fb58f9c5f90f", "name":"user_4", "email":"user_4@humboldt.edu", "__v": 0}
-    ]
 
     return (
         <div>
             <Grid container justify="space-around" justifyContent="center" pc={2} py={3} spacing={4}>
                 <Grid item xs={10} sm={4} display="flex" justifyContent="center" alignItems="center">
-                    <GraphTypeSelect setGraphType={handleGraphType}/>
+                {loading ? <Skeleton variant='rectangular' width={240} height={40}/> : <GraphTypeSelect setGraphType={handleGraphType}/>}
                 </Grid>
                 <Grid item xs={10} sm={4} display="flex" justifyContent="center" alignItems="center">
-                    <GraphCourseworkSelect assignmentName={assignmentNames} assignmentId={assignmentIds} sendSelectedAssignments={handleAssignments}/>
-
+                    {loading ? <Skeleton variant='rectangular' width={240} height={40}/> : <GraphCourseworkSelect assignmentGetData={assignmentGetData} sendSelectedAssignments={handleAssignments}/>}
                 </Grid>
                 <Grid item xs={10} sm={4} display="flex" justifyContent="center" alignItems="center">
-                    <GraphGroupSelect/>
+                    {console.log('Passing students',studentData)}
+                    {loading ? <Skeleton variant='rectangular' width={240} height={40}/> : <GraphGroupSelect studentData={studentData}/>}
                 </Grid>
                 <Grid py={6}>
                     {console.log('The parent object is passing', filteredAssignments)}
-                    <Graphs graphType={graphType} assignmentGetData={filteredAssignments}/>
+                    {loading ? <Skeleton variant='rectangular' width={480} height={600}/> : <Graphs graphType={graphType} assignmentGetData={filteredAssignments}/>}
                 </Grid>
             </Grid>
         </div>

@@ -97,7 +97,7 @@ class Graphs extends Component {
     if (Number(this.props.graphType) === 0) {
       return (
         <div>
-          <XYPlot width={500} height={500} stackBy="y">
+          <XYPlot width={500} height={500} stackBy="y" xType="ordinal" yType="linear" dontCheckIfEmpty={true}>
             <DiscreteColorLegend
               style={{ position: 'absolute', left: '50px', top: '-50px' }}
               orientation="horizontal"
@@ -111,19 +111,12 @@ class Graphs extends Component {
                   color: '#79C7E3'
                 }
               ]} />
-              <text
-              style={{
-                color: '#000000',
-                textDecorationLine: 'underline',
-                display: 'flex', justifyContent: 'center',
-                alignItems: 'center'
-              }}>
-              Assignment Numbers are on X Axis
-            </text>
             <VerticalGridLines />
             <HorizontalGridLines />
 
-            <XAxis tickTotal={this.state.barData.length} />
+            <XAxis tickFormat={d => {
+              return "Paper" + " " + d;
+            }} tickTotal={this.state.barData.length} tickLabelAngle={-45}/>
             <YAxis />
             <VerticalBarSeries data={this.state.barData} />
             <VerticalBarSeries data={this.state.barData2} />
@@ -151,15 +144,7 @@ class Graphs extends Component {
                   color: '#79C7E3'
                 }
               ]} />
-            <text
-              style={{
-                color: '#000000',
-                textDecorationLine: 'underline',
-                display: 'flex', justifyContent: 'center',
-                alignItems: 'center'
-              }}>
-              Assignment Numbers are on X Axis
-            </text>
+            
             <VerticalGridLines />
             <HorizontalGridLines />
             <XAxis tickTotal={this.props.assignmentGetData.length} />
